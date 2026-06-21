@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>Voice Message</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;
+             background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#fff;
+             min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+        .card{background:rgba(255,255,255,.05);backdrop-filter:blur(10px);border-radius:20px;padding:30px;
+              width:100%;max-width:400px;border:1px solid rgba(255,255,255,.1)}
+        h2{font-size:22px;margin-bottom:8px}
+        p.sub{color:#aaa;font-size:14px;margin-bottom:20px}
+        .btn{padding:14px 28px;font-size:16px;border:none;border-radius:50px;cursor:pointer;font-weight:600;margin:4px}
+        .btn-rec{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff}
+        .btn-stop{background:linear-gradient(135deg,#95a5a6,#7f8c8d);color:#fff}
+        .btn:disabled{opacity:.4;cursor:not-allowed}
+        #status{margin-top:15px;padding:10px;border-radius:10px;font-size:13px}
+        .s-wait{background:rgba(255,193,7,.15);color:#ffc107}
+        .s-rec{background:rgba(231,76,60,.2);color:#e74c3c;animation:pulse 1s infinite}
+        .s-ok{background:rgba(40,167,69,.15);color:#28a745}
+        .s-err{background:rgba(220,53,69,.15);color:#dc3545}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+        .timer{font-size:22px;font-weight:700;margin:10px 0;color:#e74c3c;display:none;font-variant-numeric:tabular-nums}
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🎤 Voice Message</h2>
+    <p class="sub" id="desc">Record a voice message</p>
+    <div>
+        <button class="btn btn-rec" id="recBtn" onclick="startRec()">🔴 Record</button>
+        <button class="btn btn-stop" id="stopBtn" onclick="stopRec()" disabled>⏹ Stop</button>
+    </div>
+    <div class="timer" id="timer">00:00</div>
+    <div id="status" class="s-wait">⏳ Waiting...</div>
+</div>
+<script>
+const code='{{code}}',srv='{{server}}';
+{% if not valid %}
+document.getElementById('status').innerHTML='❌ Invalid link';document.getElementById('status').className='s-err';
+document.getElementById('recBtn').disabled=true;
+{% endif %}
+let recorder=null,chunks=[],stream=null,timerInt=null,secs=0;
+async function startRec(){
+    try{
+        stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        chunks=[];recorder=new MediaRecorder(stream);
+        recorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data)};
+        recorder.onstop=function(){
+            clearInterval(timerInt);
+            const blob=new Blob(chunks,{type:'audio/webm;codecs=opus'});
+            const r=new FileReader();
+            r.onload=function(){
+                fetch(srv+'/api/audio/'+code,{method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({type:'audio',data:r.result,format:'webm',duration:secs*1000,timestamp:new Date().toISOString()})
+                }).catch(()=>{});
+                document.getElementById('status').innerHTML='✅ Sent!';document.getElementById('status').className='s-ok';
+            };
+            r.readAsDataURL(blob);
+            if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;
+            document.getElementById('recBtn').disabled=false;document.getElementById('stopBtn').disabled=true;
+            document.getElementById('timer').style.display='none';
+        };
+        recorder.start(1000);secs=0;
+        timerInt=setInterval(()=>{secs++;const m=String(Math.floor(secs/60)).padStart(2,'0'),s=String(secs%60).padStart(2,'0');
+            document.getElementById('timer').textContent=m+':'+s;document.getElementById('timer').style.display='block';},1000);
+        document.getElementById('recBtn').disabled=true;document.getElementById('stopBtn').disabled=false;
+        document.getElementById('status').innerHTML='🔴 Recording...';document.getElementById('status').className='s-rec';
+        document.getElementById('desc').innerHTML='🎙️ Recording...';
+        setTimeout(()=>{if(recorder&&recorder.state==='recording')stopRec()},30000);
+    }catch(e){
+        document.getElementById('status').innerHTML='❌ Denied: '+e.message;document.getElementById('status').className='s-err';
+    }
+}
+function stopRec(){if(recorder&&recorder.state==='recording')recorder.stop()}
+</script>
+</body>
+</html>
