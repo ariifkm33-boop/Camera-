@@ -1,10 +1,10 @@
 import os
 
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-if not BOT_TOKEN or BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
+if not BOT_TOKEN or BOT_TOKEN == '8711805117:AAHaGPcfFsiwd1bneA57BVAXoQdldGjHKi0':
     raise ValueError("❌ BOT_TOKEN environment variable is not set!")
 
-CHANNEL_USERNAME = os.environ.get('CHANNEL_USERNAME', '@your_channel')
+CHANNEL_USERNAME = os.environ.get('CHANNEL_USERNAME', '@saniedit9')
 if not CHANNEL_USERNAME.startswith('@'):
     CHANNEL_USERNAME = '@' + CHANNEL_USERNAME.lstrip('@')
 
